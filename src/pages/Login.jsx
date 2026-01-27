@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { supabase } from '../api/supabase';
 import { useNavigate, Link } from 'react-router-dom';
-import JeeLogo from '../assets/logo.jpg';
+import JeeLogo from '../assets/jee-logo.png';
 
 export default function Login() {
   const [identifier, setIdentifier] = useState(''); // Nom plus générique (email ou tel)
