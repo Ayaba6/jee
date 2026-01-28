@@ -1,11 +1,12 @@
 import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
-import { registerSW } from 'virtual:pwa-register'; // Import indispensable pour la PWA
+import { registerSW } from 'virtual:pwa-register';
 
 // Pages
 import Home from './pages/Home';
 import Login from './pages/Login';
 import Register from './pages/Register';
 import JuryDashboard from './pages/Jury/Dashboard';
+import PresidentDashboard from './pages/Jury/PresidentDashboard'; // <--- Nouvel import
 import Notation from './pages/Jury/Notation';
 import AdminDashboard from './pages/Admin/Dashboard';
 import AdminResults from './pages/Admin/Results';
@@ -15,14 +16,12 @@ import CandidatDashboard from './pages/Candidat/Dashboard';
 // Composants
 import Navbar from './components/Navbar';
 import ProtectedRoute from './components/ProtectedRoute';
+import JuryRouteSelector from './components/JuryRouteSelector'; // <--- Nouveau composant helper
 
-// 1. Enregistrement automatique de la PWA (mise à jour immédiate)
 registerSW({ immediate: true });
 
 function AppContent() {
   const location = useLocation();
-  
-  // Masquer la Navbar sur la page d'accueil ou de login si nécessaire
   const showNavbar = location.pathname !== "/" && location.pathname !== "/login";
 
   return (
@@ -37,63 +36,45 @@ function AppContent() {
           <Route path="/login" element={<Login />} />
           
           {/* --- ESPACE CANDIDAT --- */}
-          <Route 
-            path="/dashboard-candidat" 
-            element={
-              <ProtectedRoute allowedRole="candidat">
-                <CandidatDashboard />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/dashboard-candidat" element={
+            <ProtectedRoute allowedRole="candidat">
+              <CandidatDashboard />
+            </ProtectedRoute>
+          } />
 
-          {/* --- ESPACE JURY --- */}
-          <Route 
-            path="/jury" 
-            element={
-              <ProtectedRoute allowedRole="jury">
-                <JuryDashboard />
-              </ProtectedRoute>
-            } 
-          />
-          <Route 
-            path="/jury/notation/:id" 
-            element={
-              <ProtectedRoute allowedRole="jury">
-                <Notation />
-              </ProtectedRoute>
-            } 
-          />
+          {/* --- ESPACE JURY (LOGIQUE HYBRIDE) --- */}
+          <Route path="/jury" element={
+            <ProtectedRoute allowedRole="jury">
+              {/* Ce composant va décider quel dashboard afficher selon la speciality */}
+              <JuryRouteSelector /> 
+            </ProtectedRoute>
+          } />
+
+          <Route path="/jury/notation/:id" element={
+            <ProtectedRoute allowedRole="jury">
+              <Notation />
+            </ProtectedRoute>
+          } />
 
           {/* --- ESPACE ADMIN --- */}
-          <Route 
-            path="/admin" 
-            element={
-              <ProtectedRoute allowedRole="admin">
-                <AdminDashboard />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/admin" element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminDashboard />
+            </ProtectedRoute>
+          } />
           
-          <Route 
-            path="/admin/results" 
-            element={
-              <ProtectedRoute allowedRole="admin">
-                <AdminResults />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/admin/results" element={
+            <ProtectedRoute allowedRole="admin">
+              <AdminResults />
+            </ProtectedRoute>
+          } />
 
-          {/* --- GESTION DES JURYS --- */}
-          <Route 
-            path="/admin/jurys" 
-            element={
-              <ProtectedRoute allowedRole="admin">
-                <JuryList />
-              </ProtectedRoute>
-            } 
-          />
+          <Route path="/admin/jurys" element={
+            <ProtectedRoute allowedRole="admin">
+              <JuryList />
+            </ProtectedRoute>
+          } />
 
-          {/* Redirection automatique pour les routes inconnues */}
           <Route path="*" element={<Login />} />
         </Routes>
       </main>

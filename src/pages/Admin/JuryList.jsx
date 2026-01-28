@@ -6,7 +6,8 @@ import {
   EnvelopeIcon,
   AcademicCapIcon,
   MicrophoneIcon,
-  TrashIcon
+  TrashIcon,
+  ShieldCheckIcon
 } from '@heroicons/react/24/outline';
 import { useNavigate } from 'react-router-dom';
 
@@ -20,112 +21,120 @@ export default function JuryList() {
   }, []);
 
   async function fetchJurys() {
+    setLoading(true);
     const { data, error } = await supabase
       .from('profiles')
       .select('*')
-      .eq('role', 'jury')
-      .order('full_name', { ascending: true });
+      .eq('role', 'jury');
 
-    if (!error) setJurys(data);
+    if (!error && data) {
+      // Tri alphabétique de base pour les membres
+      const sorted = data.sort((a, b) => a.full_name.localeCompare(b.full_name));
+      setJurys(sorted);
+    }
     setLoading(false);
   }
 
   const handleDeleteJury = async (id, name) => {
-    if (window.confirm(`Supprimer le compte jury de ${name} ?`)) {
+    if (window.confirm(`Supprimer définitivement l'accès de ${name} ?`)) {
       const { error } = await supabase.from('profiles').delete().eq('id', id);
       if (!error) setJurys(jurys.filter(j => j.id !== id));
     }
   };
 
-  if (loading) return (
-    <div className="min-h-screen flex items-center justify-center font-black text-gray-300 animate-pulse uppercase tracking-widest">
-      Chargement des experts...
+  // Composant interne pour la carte Jury
+  const JuryCard = ({ jury, isPresident }) => (
+    <div className={`group relative bg-white p-5 rounded-[2rem] border ${isPresident ? 'border-blue-200 ring-4 ring-blue-50/50 shadow-md' : 'border-gray-100 shadow-sm'} transition-all duration-300`}>
+      {isPresident && (
+        <div className="absolute top-0 right-0 bg-blue-600 text-white px-3 py-1 rounded-bl-2xl flex items-center gap-1">
+          <ShieldCheckIcon className="h-3 w-3" />
+          <span className="text-[8px] font-black uppercase tracking-tighter">Président</span>
+        </div>
+      )}
+      <div className="flex items-center gap-4">
+        <div className={`p-3 rounded-xl ${jury.speciality.includes('agro') ? 'bg-emerald-50 text-emerald-600' : 'bg-orange-50 text-orange-600'}`}>
+          {jury.speciality.includes('agro') ? <AcademicCapIcon className="h-5 w-5" /> : <MicrophoneIcon className="h-5 w-5" />}
+        </div>
+        <div className="min-w-0 flex-1">
+          <h4 className="font-black text-gray-900 text-sm truncate uppercase tracking-tight">{jury.full_name}</h4>
+          <p className="text-[10px] text-gray-400 font-bold truncate lowercase">{jury.email}</p>
+        </div>
+        <button onClick={() => handleDeleteJury(jury.id, jury.full_name)} className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-lg transition-colors">
+          <TrashIcon className="h-4 w-4" />
+        </button>
+      </div>
     </div>
   );
 
-  const JurySection = ({ title, data, type }) => (
-    <div className="mb-10">
-      <div className="flex items-center gap-4 mb-6 px-2">
-        <h2 className="text-[10px] md:text-xs font-black text-gray-400 uppercase tracking-[0.3em] whitespace-nowrap">{title}</h2>
-        <div className="h-px bg-gray-200 w-full"></div>
-        <span className="bg-gray-100 text-gray-500 px-3 py-1 rounded-full text-[10px] font-bold">{data.length}</span>
-      </div>
+  // Helper pour filtrer et trier une compétition spécifique
+  const renderCompetitionGroup = (label, specKey, prezKey, icon) => {
+    const president = jurys.find(j => j.speciality === prezKey);
+    const members = jurys.filter(j => j.speciality === specKey);
 
-      {/* GRILLE RESPONSIVE : 1 colonne mobile, 2 tablettes, 3 desktop */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
-        {data.map((jury) => (
-          <div key={jury.id} className="bg-white p-5 md:p-6 rounded-[2rem] border border-gray-100 shadow-sm hover:shadow-md transition-all group relative overflow-hidden">
-            <div className="flex items-center gap-4">
-              <div className={`p-3 rounded-2xl shrink-0 ${type === 'agro_pitch' ? 'bg-green-50 text-green-600' : 'bg-orange-50 text-orange-600'}`}>
-                {type === 'agro_pitch' ? <AcademicCapIcon className="h-6 w-6" /> : <MicrophoneIcon className="h-6 w-6" />}
-              </div>
-              <div className="min-w-0 flex-1">
-                <h3 className="font-black text-gray-900 text-base md:text-lg truncate">{jury.full_name}</h3>
-                <div className="flex items-center gap-2 text-gray-400 text-[10px] font-bold mt-1 uppercase tracking-widest truncate">
-                  <EnvelopeIcon className="h-3 w-3 shrink-0" />
-                  <span className="truncate">{jury.email || 'Email non renseigné'}</span>
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-6 flex items-center justify-between">
-              <span className={`px-4 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-tighter ${
-                type === 'agro_pitch' ? 'bg-green-600 text-white' : 'bg-orange-500 text-white'
-              }`}>
-                Expert {type.replace('_', ' ')}
-              </span>
-              
-              <button 
-                onClick={() => handleDeleteJury(jury.id, jury.full_name)}
-                className="p-2 text-gray-300 hover:text-red-500 hover:bg-red-50 rounded-xl transition-colors"
-              >
-                <TrashIcon className="h-5 w-5" />
-              </button>
-            </div>
-          </div>
-        ))}
-      </div>
-      
-      {data.length === 0 && (
-        <div className="text-center py-10 bg-gray-50 rounded-[2rem] border-2 border-dashed border-gray-200 text-gray-400 text-xs font-bold uppercase">
-          Aucun membre enregistré dans cette catégorie
+    return (
+      <div className="mb-12">
+        <div className="flex items-center gap-3 mb-6 px-2">
+          <div className="p-2 bg-white rounded-lg shadow-sm text-gray-400">{icon}</div>
+          <h2 className="text-sm font-black text-gray-900 uppercase tracking-widest italic">{label}</h2>
+          <div className="h-px flex-1 bg-gray-200"></div>
         </div>
-      )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {/* Le président est toujours affiché en premier s'il existe */}
+          {president && <JuryCard jury={president} isPresident={true} />}
+          
+          {/* Les autres membres */}
+          {members.map(jury => (
+            <JuryCard key={jury.id} jury={jury} isPresident={false} />
+          ))}
+          
+          {!president && members.length === 0 && (
+            <div className="col-span-full py-10 text-center border-2 border-dashed border-gray-100 rounded-[2.5rem]">
+              <p className="text-gray-300 text-[10px] font-black uppercase tracking-widest">Aucun membre pour cette catégorie</p>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  };
+
+  if (loading) return (
+    <div className="min-h-screen flex flex-col items-center justify-center bg-[#F8FAFC]">
+      <div className="w-10 h-10 border-4 border-blue-600 border-t-transparent rounded-full animate-spin"></div>
     </div>
   );
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] pb-20">
-      {/* NAVBAR RESPONSIVE */}
-      <nav className="bg-white border-b border-gray-200 sticky top-0 z-20 px-4 md:px-6">
+      <nav className="bg-white/80 backdrop-blur-md border-b border-gray-100 sticky top-0 z-30 px-6">
         <div className="max-w-7xl mx-auto h-20 flex items-center justify-between">
-          <button onClick={() => navigate(-1)} className="flex items-center gap-1 md:gap-2 text-gray-500 font-bold hover:text-indigo-600 transition text-sm">
-            <ChevronLeftIcon className="h-5 w-5" /> <span className="hidden sm:inline">Retour</span>
+          <button onClick={() => navigate(-1)} className="p-2 hover:bg-gray-50 rounded-xl transition-all">
+            <ChevronLeftIcon className="h-6 w-6 text-gray-400 hover:text-gray-900" />
           </button>
-          
-          <div className="flex items-center gap-2 md:gap-3">
+          <div className="flex items-center gap-3">
             <UserGroupIcon className="h-6 w-6 text-blue-600" />
-            <h1 className="text-lg md:text-xl font-black text-gray-900 uppercase tracking-tighter text-center">
-              Membres du <span className="text-blue-600">Jury</span>
-            </h1>
+            <h1 className="text-xl font-black text-gray-900 uppercase italic">Collège des <span className="text-blue-600">Jurys</span></h1>
           </div>
-          
-          <div className="w-10 sm:w-20"></div> {/* Spacer pour centrer le titre */}
+          <div className="w-10"></div>
         </div>
       </nav>
 
-      <div className="max-w-6xl mx-auto px-4 md:px-6 mt-8 md:mt-12">
-        <JurySection 
-          title="Catégorie Agro Pitch" 
-          data={jurys.filter(j => j.speciality === 'agro_pitch')} 
-          type="agro_pitch" 
-        />
-        
-        <JurySection 
-          title="Catégorie Slam" 
-          data={jurys.filter(j => j.speciality === 'slam')} 
-          type="slam" 
-        />
+      <div className="max-w-7xl mx-auto px-6 mt-12">
+        {/* SECTION AGRO PITCH */}
+        {renderCompetitionGroup(
+          "Catégorie Agro Pitch", 
+          "agro_pitch", 
+          "president_agro_pitch", 
+          <AcademicCapIcon className="h-5 w-5" />
+        )}
+
+        {/* SECTION SLAM */}
+        {renderCompetitionGroup(
+          "Catégorie Slam", 
+          "slam", 
+          "president_slam", 
+          <MicrophoneIcon className="h-5 w-5" />
+        )}
       </div>
     </div>
   );
